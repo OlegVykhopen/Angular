@@ -1,0 +1,23 @@
+<div class="row">
+    <div class="col-md-12">
+        <h1>Forecast page</h1>
+        <p>Forecast for {{city}}</p>
+        Day: <a href="#/forecast/2" class="btn btn-default" ng-class="{'btn-primary':days === '2'}">2</a>
+        <a href="#/forecast/5" class="btn btn-default" ng-class="{'btn-primary':days === '5'}">5</a>
+        <a href="#/forecast/7" class="btn btn-default" ng-class="{'btn-primary':days === '7'}">7</a>
+    </div>
+</div>
+<div ng-repeat="day in weatherResult.list">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">{{convertToDate(day.dt) | date: 'MMM d, y'}}</h3>
+                </div>
+                <div class="panel-body">
+                    Daytime temperature: {{convertToDegrees(day.temp.day) | number:0}} C°
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
