@@ -46,7 +46,18 @@ forecastApp.controller("forecastController", ['$scope','$resource','$routeParams
         return new Date(timestamp*1000);
     };
 
-
 }]);
+
+forecastApp.directive("resultPanel", function(){
+    return {
+        templateUrl: "directives/result_panel.html",
+        replace: false,
+        transclude: true,
+        scope: {
+            day: "@",
+            temp: "@"
+        }
+    }
+});
 
 
