@@ -1,0 +1,8 @@
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">{{toStandartDate({date: weather.dt}) | date: format}}</h3>
+    </div>
+    <div class="panel-body">
+        Daytime temperature: {{toStandartTemp({temp: weather.temp.day}) | number:0}} <ng-transclude></ng-transclude>
+    </div>
+</div>
