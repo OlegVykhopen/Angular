@@ -1,0 +1,103 @@
+main, header{
+    padding: 10px 20px;
+}
+
+section{
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+.pathCont{
+    padding: 10px 20px;
+}
+
+.controls_cont{
+    text-align: center;
+}
+.controls_cont input[type="button"]{
+    outline: none;
+    margin-right: 10px;
+    display: inline-block;
+    padding: 6px 12px;
+    margin-bottom: 0;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.42857143;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-image: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #333;
+    background-color: #fff;
+    border-color: #ccc;
+}
+.controls_cont input[type="button"]:hover{
+    color: #333;
+    background-color: #e6e6e6;
+    border-color: #adadad;
+}
+
+.itemsCont{
+    padding: 0 20px;
+    margin-top: 10px;
+}
+.itemsCont table{
+    width: 100%;
+    border-collapse: collapse;
+}
+.itemsCont table thead tr td{
+    background: rgba(121, 163, 162, 0.23);
+}
+.itemsCont table tr td{
+    width: 50%;
+    border: 1px solid #000;
+    padding: 5px;
+}
+.itemsCont table tr:nth-child(even) td{
+    background: #ebefe5;
+}
+.itemsCont table tr td:first-child{
+    width: 30%;
+}
+.itemsCont table tr td:last-child{
+    text-align: center;
+    width: 20%;
+}
+.itemsCont table tr:nth-child(even) td{
+    background: #ebefe5;
+}
+.itemsCont table thead tr td{
+    width: 48%;
+}
+.itemsCont table thead tr td:first-child{
+    width: 29%;
+}
+.itemsCont table thead tr td:last-child{
+    text-align: center;
+    width: 22%;
+}
+.itemsCont .tbodyCont table tr:last-child td{
+    border-bottom: none;
+}
+.itemsCont .tbodyCont table tr td:last-child{
+    border-right: none;
+}
+.itemsCont .tbodyCont{
+    border-bottom: 1px solid #000;
+    border-right: 1px solid #000;
+}
+.itemsCont .tbodyCont{
+    max-height: 400px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+
+}
