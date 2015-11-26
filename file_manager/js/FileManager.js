@@ -5,7 +5,7 @@ function FileManager(params){
     self.sortBy = params.sortBy || "name";
     self.container = params.container || document.body;
 
-    /* path functionality block */
+     // path functionality block
     (function(){
         var pathCont = self._createCont("pathCont");
         self.container.appendChild(pathCont);
@@ -24,7 +24,7 @@ function FileManager(params){
         };
     })();
 
-    /* controls functionality block */
+     // controls functionality block
     (function(){
         var controls = function(){
 
@@ -38,29 +38,48 @@ function FileManager(params){
                 self._renameItem();
             });
             controls.createFolderBtn = self._createBtn("Create folder", "_createFolderBtn", function(){
-                var curFold = self._getItemByType(self._TYPE_FOLDER);
-                self._createItem({
-                    type: self._TYPE_FOLDER,
-                    name: self._DEFAULT_FOLDER_NAME + (curFold.defaultItems != 0 ? curFold.defaultItems : ""),
-                    action: function(){
-                        alert(1);
-                    }
-                });
+                var curFold = self._getItemByType(self._TYPE_FOLDER),
+                    name = self._DEFAULT_FOLDER_NAME + (curFold.defaultItems != 0 ? curFold.defaultItems : ""),
+                    item = self._createItem({
+                        type: self._TYPE_FOLDER,
+                        name: name,
+                        action: function(){
+                            if (!this.readOnly) return false;
+                            // TODO open folder
+                        },
+                        change: function(){
+                            self._changeSelectedStatus(this.checked, item, {type: self._TYPE_FOLDER,name: name});
+                        },
+                        keyup: function(e){
+                            if (e.keyCode == 13){
+                                if (confirm("Do you really want rename item ?")) self._verifyName(this, self._TYPE_FOLDER);
+                            }
+                        }
+                    });
             });
             controls.createFileBtn = self._createBtn("Create file", "_createFileBtn", function(){
-                var curFiles = self._getItemByType(self._TYPE_FILE);
-                self._createItem({
-                    type: self._TYPE_FILE,
-                    name: self._DEFAULT_FILE_NAME + (curFiles.defaultItems != 0 ? curFiles.defaultItems : ""),
-                    action: function(){
-                        alert(2);
-                    }
-                });
+                var curFiles = self._getItemByType(self._TYPE_FILE),
+                    name = self._DEFAULT_FILE_NAME + (curFiles.defaultItems != 0 ? curFiles.defaultItems : ""),
+                    item = self._createItem({
+                        type: self._TYPE_FILE,
+                        name: name,
+                        action: function(){
+                            if (!this.readOnly) return false;
+                            alert("Currently file can not be opened");
+                        },
+                        change: function(){
+                            self._changeSelectedStatus(this.checked, item, {type: self._TYPE_FILE,name: name});
+                        },
+                        keyup: function(e){
+                            if (e.keyCode == 13){
+                                if (confirm("Do you really want rename item ?")) self._verifyName(this, self._TYPE_FILE);
+                            }
+                        }
+                    });
             });
-            controlsCont.appendChild(controls.deleteBtn);
-            controlsCont.appendChild(controls.renameBtn);
-            controlsCont.appendChild(controls.createFolderBtn);
-            controlsCont.appendChild(controls.createFileBtn);
+            for (var i in controls){
+                if (controls.hasOwnProperty(i)) controlsCont.appendChild(controls[i]);
+            }
             return controls;
 
         }();
@@ -69,7 +88,7 @@ function FileManager(params){
         }
     })();
 
-    /* items table functionality block */
+     // items table functionality block
     (function(){
         var itemsCont = self._createCont("itemsCont");
         self.container.appendChild(itemsCont);
@@ -89,10 +108,23 @@ function FileManager(params){
         self.getItemsTable = function(){
             return itemsTB;
         };
+        // create first toor folder
         self.getItemsTable().appendChild(self._createItem({
-            isEmpty: true,
+            isRoot: true,
             action: function(){
-                alert(3)
+                // TODO back to root folder
+            },
+            change: function(){
+                if (self.getItemsTable().childNodes.length <= 1){
+                    this.checked = false;
+                    return false;
+                }
+                var allChbox = self.getItemsTable().querySelectorAll("input[type=checkbox]");
+                for (var i = 0; i < allChbox.length; i++){
+                    if (allChbox[i] == this) continue;
+                    allChbox[i].checked  = this.checked;
+                    allChbox[i].onchange();
+                }
             }
         }));
     })();
@@ -100,43 +132,90 @@ function FileManager(params){
 }
 
 FileManager.prototype = {
+    constructor: FileManager,
     _root: "rootFolder",
     _selectedItems: [],
+    _groupControl: {},
     _TYPE_FOLDER: "folder",
     _TYPE_FILE: "file",
     _DEFAULT_FOLDER_NAME: "newFolder",
     _DEFAULT_FILE_NAME: "newFile",
     _deleteItem: function(){
-        if (this._selectedItems.length == 0){
+        var toDeleteCount = this._selectedItems.length;
+        if (toDeleteCount == 0){
             alert("Nothing to delete");
             return false;
         }else{
-            for (var i = 0; i < this._selectedItems.length; i++){
-                var el = this._selectedItems[i].node;
-                el.parentNode.removeChild(el);
+            if (confirm("Delete " + toDeleteCount + (toDeleteCount == 1 ? " item" : " items") + "?")){
+                for (var i = 0; i < toDeleteCount; i++){
+                    var el = this._selectedItems[i].node;
+                    el.parentNode.removeChild(el);
+                }
+                this._selectedItems = [];
+                if (this.getItemsTable().childNodes.length == 1){
+                    this._groupControl.checked = false;
+                }
+                return true;
             }
-            this._selectedItems = [];
-            return true;
         }
     },
     _renameItem: function(){
-        console.log(this);
+        if (this._selectedItems.length == 0){
+            alert("Nothing to rename");
+            return false;
+        }else{
+            for (var i = 0; i < this._selectedItems.length; i++){
+                var inp = this._selectedItems[i].node.querySelector('input');
+                inp.readOnly = false;
+                if (i == 0) inp.focus();
+            }
+        }
+    },
+    _isNameUnique: function(el, type){
+        var isUnique = true,
+            allByType = this._getItemByType(type).nodes;
+        for (var i = 0; i < allByType.length; i++){
+            var inp = allByType[i].querySelector('input[type=text]');
+            if (inp == el) continue;
+            if (inp.value == el.value){
+                isUnique = false;
+                break;
+            }
+        }
+        return isUnique;
+    },
+    _verifyName: function(inp, type){
+        if (this._isNameUnique(inp, type)){
+            inp.readOnly = true;
+            inp.setAttribute("data-base-value", inp.value);
+        }else if (inp.value == ""){
+            alert("Name can not be empty");
+        }else{
+            alert("Such name already exist");
+        }
     },
     _createItem: function(params){
         var item = document.createElement("tr"),
-            name = params.name || "...";
+            name = params.name || "...",
+            _this = this;
+
         item.className = params.type || this._TYPE_FOLDER;
         item.innerHTML = "" +
             "<td>"+(params.type || this._TYPE_FOLDER)+"</td>" +
-            "<td>" + name +  "</td>" +
-            "<td>"+ (params.isEmpty == true ? "&nbsp;" : this._createBox('box_'+name).outerHTML) +"</td>" +
+            "<td><input type='text' data-base-value='"+name+"' readonly value='" + name +  "' /></td>" +
+            "<td>"+ this._createBox('box_'+name).outerHTML +"</td>" +
             "";
-        item.childNodes[1].onclick = params.action || function(){};
-        var fChBox = item.childNodes[2].childNodes[0],
-            _this = this;
-        if (fChBox != undefined && fChBox.tagName && fChBox.tagName.toLocaleLowerCase() == "input") fChBox.onchange = function(){
-            _this._changeSelectedStatus(this.checked, item, params);
-        };
+
+        var nameHolder = item.querySelector("input[type=text]"),
+            fChBox = item.querySelector("input[type=checkbox]");
+
+        nameHolder.onclick = params.action || function(){};
+        nameHolder.onkeyup = params.keyup || function(){};
+        if (fChBox != undefined){
+            if (params.isRoot) _this._groupControl = fChBox;
+            fChBox.onchange = params.change || function(){};
+        }
+
         this.getItemsTable().appendChild(item);
         return item;
     },
@@ -153,6 +232,14 @@ FileManager.prototype = {
                     break;
                 }
             }
+            var inp = item.querySelector("input[type=text]");
+            inp.readOnly = true;
+            inp.value = inp.dataset.baseValue;
+        }
+        if (this._selectedItems.length == 0){
+            this._groupControl.checked = false;
+        }else if (this._selectedItems.length == this.getItemsTable().childNodes.length - 1){
+            this._groupControl.checked = true;
         }
     },
     _getItemByType: function(type){
@@ -163,10 +250,9 @@ FileManager.prototype = {
         for (var i = 1; i < chl.length; i++){
             if (chl[i].className == type){
                 byType.push(chl[i]);
-                if (chl[i].childNodes[1].innerText.search(defName) != -1) defNameCount++;
+                if (chl[i].childNodes[1].querySelector('input').value.search(defName) != -1) defNameCount++;
             }
         }
-        console.log({nodes: byType, defaultItems: defNameCount});
         return {nodes: byType, defaultItems: defNameCount};
     },
     _createCont: function(className){

@@ -4,3 +4,5 @@ var mFileManager = new FileManager({
     container: document.getElementById("fmCont"),
     sortBy: "type"
 });
+
+console.log(mFileManager);

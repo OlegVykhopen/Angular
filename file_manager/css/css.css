@@ -88,6 +88,15 @@ section{
 .itemsCont .tbodyCont table tr:last-child td{
     border-bottom: none;
 }
+.itemsCont .tbodyCont table tr td input[readonly]{
+    border: none;
+    outline: none;
+    background: none;
+    cursor: pointer;
+}
+.itemsCont .tbodyCont table tr td input[readonly]:hover{
+    text-decoration: underline;
+}
 .itemsCont .tbodyCont table tr td:last-child{
     border-right: none;
 }
