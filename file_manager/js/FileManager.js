@@ -39,43 +39,13 @@ function FileManager(params){
             });
             controls.createFolderBtn = self._createBtn("Create folder", "_createFolderBtn", function(){
                 var curFold = self._getItemByType(self._TYPE_FOLDER),
-                    name = self._DEFAULT_FOLDER_NAME + (curFold.defaultItems != 0 ? curFold.defaultItems : ""),
-                    item = self._createItem({
-                        type: self._TYPE_FOLDER,
-                        name: name,
-                        action: function(){
-                            if (!this.readOnly) return false;
-                            // TODO open folder
-                        },
-                        change: function(){
-                            self._changeSelectedStatus(this.checked, item, {type: self._TYPE_FOLDER,name: name});
-                        },
-                        keyup: function(e){
-                            if (e.keyCode == 13){
-                                if (confirm("Do you really want rename item ?")) self._verifyName(this, self._TYPE_FOLDER);
-                            }
-                        }
-                    });
+                    name = self._DEFAULT_FOLDER_NAME + (curFold.defaultItems != 0 ? curFold.defaultItems : "");
+                self._createFolder(name, null, true);
             });
             controls.createFileBtn = self._createBtn("Create file", "_createFileBtn", function(){
                 var curFiles = self._getItemByType(self._TYPE_FILE),
-                    name = self._DEFAULT_FILE_NAME + (curFiles.defaultItems != 0 ? curFiles.defaultItems : ""),
-                    item = self._createItem({
-                        type: self._TYPE_FILE,
-                        name: name,
-                        action: function(){
-                            if (!this.readOnly) return false;
-                            alert("Currently file can not be opened");
-                        },
-                        change: function(){
-                            self._changeSelectedStatus(this.checked, item, {type: self._TYPE_FILE,name: name});
-                        },
-                        keyup: function(e){
-                            if (e.keyCode == 13){
-                                if (confirm("Do you really want rename item ?")) self._verifyName(this, self._TYPE_FILE);
-                            }
-                        }
-                    });
+                    name = self._DEFAULT_FILE_NAME + (curFiles.defaultItems != 0 ? curFiles.defaultItems : "");
+                self._createFile(name, true);
             });
             for (var i in controls){
                 if (controls.hasOwnProperty(i)) controlsCont.appendChild(controls[i]);
@@ -112,6 +82,7 @@ function FileManager(params){
         self.getItemsTable().appendChild(self._createItem({
             isRoot: true,
             action: function(){
+                alert(1);
                 // TODO back to root folder
             },
             change: function(){
@@ -126,7 +97,23 @@ function FileManager(params){
                     allChbox[i].onchange();
                 }
             }
-        }));
+        }, false));
+    })();
+
+    // storage functionality block
+    (function(){
+        var storedItems = window.localStorage.getItem(self._KEY_ITEMS);
+        if (storedItems != null){
+            var baseRoot = JSON.parse(storedItems);
+            self.getBaseRoot = function(){
+                return baseRoot;
+            };
+            self._createStorageRoot(baseRoot.root, baseRoot.items);
+            self._buildItemsFromStorage(baseRoot.items);
+        }else{
+            self._createStorageRoot(null, null);
+            self._saveStorageRoot();
+        }
     })();
 
 }
@@ -140,6 +127,55 @@ FileManager.prototype = {
     _TYPE_FILE: "file",
     _DEFAULT_FOLDER_NAME: "newFolder",
     _DEFAULT_FILE_NAME: "newFile",
+    _KEY_ITEMS: "stored_items",
+    _ACTION_ADD: 1,
+    _ACTION_DELETE: 2,
+    _ACTION_UPDATE: 3,
+    _createStorageRoot: function(rootName, rootItems){
+        var pathArr = this.getPath().split("/");
+        FileManager.prototype._currentRoot = {
+            root: rootName || pathArr[pathArr.length - 1],
+            items: rootItems || []
+        };
+    },
+    _updateStorageRoot: function(upItems, action, oldItem){
+        switch (action){
+            case this._ACTION_ADD:
+                if (upItems.constructor === Array){
+                    this._currentRoot.items.push.apply(this._currentRoot.items, upItems)
+                }else{
+                    this._currentRoot.items.push(upItems);
+                }
+                break;
+            case this._ACTION_DELETE:
+                this._currentRoot.items.splice(this._currentRoot.items.indexOf(upItems));
+                break;
+            case this._ACTION_UPDATE:
+                for (var i = 0; i < this._currentRoot.items.length; i++){
+                   if (this._currentRoot.items[i].name === oldItem.name && this._currentRoot.items[i].type === oldItem.type){
+                       this._currentRoot.items[i] = upItems;
+                       break;
+                   }
+                }
+                break;
+        }
+    },
+    _saveStorageRoot: function(){
+        window.localStorage.setItem(this._KEY_ITEMS, JSON.stringify(this._currentRoot));
+    },
+    _buildItemsFromStorage: function(items){
+        if (items == null || items.length == 0) return false;
+        for(var i = 0; i < items.length; i++){
+            switch (items[i].type) {
+                case this._TYPE_FILE:
+                    this._createFile(items[i].name, false);
+                    break;
+                case this._TYPE_FOLDER:
+                    this._createFolder(items[i].name, items[i].items, false);
+                    break;
+            }
+        }
+    },
     _deleteItem: function(){
         var toDeleteCount = this._selectedItems.length;
         if (toDeleteCount == 0){
@@ -150,6 +186,8 @@ FileManager.prototype = {
                 for (var i = 0; i < toDeleteCount; i++){
                     var el = this._selectedItems[i].node;
                     el.parentNode.removeChild(el);
+                    this._updateStorageRoot(this._selectedItems[i].info, this._ACTION_DELETE);
+                    this._saveStorageRoot();
                 }
                 this._selectedItems = [];
                 if (this.getItemsTable().childNodes.length == 1){
@@ -188,13 +226,16 @@ FileManager.prototype = {
         if (this._isNameUnique(inp, type)){
             inp.readOnly = true;
             inp.setAttribute("data-base-value", inp.value);
+            return true;
         }else if (inp.value == ""){
             alert("Name can not be empty");
+            return false;
         }else{
             alert("Such name already exist");
+            return false;
         }
     },
-    _createItem: function(params){
+    _createItem: function(params, isNew){
         var item = document.createElement("tr"),
             name = params.name || "...",
             _this = this;
@@ -212,12 +253,73 @@ FileManager.prototype = {
         nameHolder.onclick = params.action || function(){};
         nameHolder.onkeyup = params.keyup || function(){};
         if (fChBox != undefined){
-            if (params.isRoot) _this._groupControl = fChBox;
+            if (params.isRoot) FileManager.prototype._groupControl = fChBox;
             fChBox.onchange = params.change || function(){};
         }
 
         this.getItemsTable().appendChild(item);
+        if (!params.isRoot && isNew){
+            this._updateStorageRoot(params, this._ACTION_ADD);
+            this._saveStorageRoot();
+        }
         return item;
+    },
+    _createFile: function(name, isNew){
+        var _this = this,
+            item = _this._createItem({
+            type: _this._TYPE_FILE,
+            name: name,
+            action: function(){
+                if (!this.readOnly) return false;
+                alert("Currently file can not be opened");
+            },
+            change: function(){
+                _this._changeSelectedStatus(this.checked, item, {type: _this._TYPE_FILE,name: name});
+            },
+            keyup: function(e){
+                if (e.keyCode == 13){
+                    if (_this._verifyName(this, _this._TYPE_FILE)){
+                        _this._updateStorageRoot({ type: _this._TYPE_FILE, name: this.value}, _this._ACTION_UPDATE , {type: _this._TYPE_FILE, name: name});
+                        _this._saveStorageRoot();
+                    }
+                }
+            }
+        }, isNew);
+        return item;
+    },
+    _createFolder: function(name, items, isNew){
+        var _this = this,
+            item = _this._createItem({
+                type: _this._TYPE_FOLDER,
+                name: name,
+                items: items || [],
+                action: function(){
+                    if (!this.readOnly) return false;
+                    _this._openFolder({
+                        name: name,
+                        items: items
+                    });
+                },
+                change: function(){
+                    _this._changeSelectedStatus(this.checked, item, {type: _this._TYPE_FOLDER, name: name, items: items});
+                },
+                keyup: function(e){
+                    if (e.keyCode == 13){
+                        if (_this._verifyName(this, _this._TYPE_FOLDER)){
+                            _this._updateStorageRoot({ type: _this._TYPE_FOLDER, name: this.value, items: items}, _this._ACTION_UPDATE , {type: _this._TYPE_FOLDER, name: name,
+                                items: items});
+                            _this._saveStorageRoot();
+                        }
+                    }
+                }
+            }, isNew);
+        return item;
+    },
+    _openFolder: function(params){
+        this.updatePath(params.name, true);
+        this._clearTable();
+        this._updateStorageRoot(params.name, params.items);
+        this._buildItemsFromStorage(params.items);
     },
     _changeSelectedStatus: function(isSelected, item, itemParams){
         if (isSelected){
@@ -273,5 +375,13 @@ FileManager.prototype = {
         box.type = "checkbox";
         box.name = name;
         return box;
+    },
+    _clearTable: function(){
+        var tbl = this.getItemsTable(),
+            rootItem = tbl.childNodes[0];
+        while (tbl.hasChildNodes()) {
+            tbl.removeChild(tbl.lastChild);
+        }
+        tbl.appendChild(rootItem);
     }
 };
