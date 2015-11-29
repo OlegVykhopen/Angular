@@ -5,9 +5,36 @@ function FileManager(params){
     self.sortBy = params.sortBy || "name";
     self.container = params.container || document.body;
 
+    /** strings */
+    self.deleteBtnTxt = params.deleteBtnTxt || "Delete";
+    self.renameBtnTxt = params.renameBtnTxt || "Rename";
+    self.creteFolderBtnTxt = params.creteFolderBtnTxt || "Create folder";
+    self.creteFileBtnTxt = params.creteFileBtnTxt || "Create file";
+    self.noForDeleteTxt = params.noForDeleteTxt || "Nothing to delete";
+    self.noForRenameTxt = params.noForDeleteTxt || "Nothing to rename";
+    self.deleteTxt = params.deleteTxt || "Delete";
+    self.itemTxt = params.itemTxt || "item";
+    self.itemsTxt = params.itemsTxt || "items";
+    self.noEmptyNameTxt = params.noEmptyNameTxt || "Name can not be empty";
+    self.existNameTxt = params.existNameTxt || "Such name already exist";
+    self.allowOpenFileTxt = params.allowOpenFileTxt || "Currently file can not be opened";
+    self.inRootTxt = params.inRootTxt || "You are in root folder";
+
+    /** classes */
+    self.contClass = params.contClass || "itemsCont";
+    self.pathContClass = params.pathContClass || "pathCont";
+    self.headerTblClass = params.headerTblClass || "";
+    self.itemsTblClass = params.itemsTblClass || "";
+    self.itemsTblContClass = params.itemsTblContClass || "tbodyCont";
+    self.controlsContClass = params.controlsContClass || "controls_cont";
+    self.deleteBtnClass = params.deleteBtnClass || "_deleteItemBtn";
+    self.renameBtnClass = params.renameBtnClass || "_renameItemBtn";
+    self.crFolderBtnClass = params.crFolderBtnClass || "_createFolderBtn";
+    self.crFileBtnClass = params.crFileBtnClass || "_createFileBtn";
+
      // path functionality block
     (function(){
-        var pathCont = self._createCont("pathCont");
+        var pathCont = self._createCont(self.pathContClass);
         self.container.appendChild(pathCont);
         var path = "";
         self.updatePath = function(newPathName, add){
@@ -28,23 +55,23 @@ function FileManager(params){
     (function(){
         var controls = function(){
 
-            var controlsCont = self._createCont("controls_cont"),
+            var controlsCont = self._createCont(self.controlsContClass),
                 controls = {};
             self.container.appendChild(controlsCont);
-            controls.deleteBtn = self._createBtn("Delete", "_deleteItemBtn", function(){
+            controls.deleteBtn = self._createBtn(self.deleteBtnTxt, self.deleteBtnClass, function(){
                 self._deleteItem();
             });
-            controls.renameBtn = self._createBtn("Rename", "_renameItemBtn", function(){
+            controls.renameBtn = self._createBtn(self.renameBtnTxt, self.renameBtnClass, function(){
                 self._renameItem();
             });
-            controls.createFolderBtn = self._createBtn("Create folder", "_createFolderBtn", function(){
+            controls.createFolderBtn = self._createBtn(self.creteFolderBtnTxt, self.crFolderBtnClass, function(){
                 var curFold = self._getItemByType(self._TYPE_FOLDER),
-                    name = self._DEFAULT_FOLDER_NAME + (curFold.defaultItems != 0 ? curFold.defaultItems : "");
+                    name = self._DEFAULT_FOLDER_NAME + (curFold.defaultItems != 0 ? curFold.defaultItems : ""); // add default name for folder depends on quantity
                 self._createFolder(name, null, true);
             });
-            controls.createFileBtn = self._createBtn("Create file", "_createFileBtn", function(){
+            controls.createFileBtn = self._createBtn(self.creteFileBtnTxt, self.crFileBtnClass, function(){
                 var curFiles = self._getItemByType(self._TYPE_FILE),
-                    name = self._DEFAULT_FILE_NAME + (curFiles.defaultItems != 0 ? curFiles.defaultItems : "");
+                    name = self._DEFAULT_FILE_NAME + (curFiles.defaultItems != 0 ? curFiles.defaultItems : ""); // add default name for file depends on quantity
                 self._createFile(name, true);
             });
             for (var i in controls){
@@ -60,9 +87,10 @@ function FileManager(params){
 
      // items table functionality block
     (function(){
-        var itemsCont = self._createCont("itemsCont");
+        var itemsCont = self._createCont(self.contClass);
         self.container.appendChild(itemsCont);
         var headerTB = document.createElement('table');
+        headerTB.className = self.headerTblClass;
         headerTB.innerHTML = "<thead>" +
             "<tr>" +
             "<td>Type</td>" +
@@ -72,28 +100,29 @@ function FileManager(params){
             "</thead>";
         itemsCont.appendChild(headerTB);
         var itemsTB = document.createElement('table'),
-            cont = self._createCont("tbodyCont");
+            cont = self._createCont(self.itemsTblContClass);
         itemsCont.appendChild(cont);
+        itemsTB.className = self.itemsTblClass;
         cont.appendChild(itemsTB);
         self.getItemsTable = function(){
             return itemsTB;
         };
         // create first item for returning to parent folder
-        self.getItemsTable().appendChild(self._createItem({
+        itemsTB.appendChild(self._createItem({
             isRoot: true,
+            name: "...",
             action: function(){ // fire return to parent action
                 self._back();
             },
             change: function(){
-                if (self.getItemsTable().childNodes.length <= 1){
+                if (self.getItemsTable().childNodes.length <= 1){ // return if just root folder exist
                     this.checked = false;
                     return false;
                 }
                 var allChbox = self.getItemsTable().querySelectorAll("input[type=checkbox]");
-                for (var i = 0; i < allChbox.length; i++){
-                    if (allChbox[i] == this) continue;
-                    allChbox[i].checked  = this.checked;
-                    allChbox[i].onchange();
+                for (var i = 0; i < allChbox.length; i++){ // make all checkboxes the same status as group control
+                    if (allChbox[i] === this) continue;
+                    self._triggerBoxChange(this.checked, allChbox[i]);
                 }
             }
         }, false));
@@ -113,6 +142,19 @@ function FileManager(params){
         if (storedItems != null) baseRoot = JSON.parse(storedItems);
         self._buildItemsFromStorage(self._createStorageRoot(baseRoot.name, baseRoot.items).items); // create root folder for file manager
     })();
+
+    // events block
+    document.addEventListener("keyup", function(e){
+        switch (e.keyCode){
+            case 113:
+                self._renameItem();
+                break;
+            case 27:
+                self._triggerBoxChange(false, self._groupControl);
+                break;
+            default:
+        }
+    });
 
 }
 
@@ -193,7 +235,7 @@ FileManager.prototype = {
         window.localStorage.setItem(this._KEY_ITEMS, JSON.stringify(root)); // save whole root in storage
     },
     _buildItemsFromStorage: function(items){
-        if (items == null || items.length == 0) return false;
+        if (items === null || items.length === 0) return false;
         for(var i = 0; i < items.length; i++){
             switch (items[i].type) {
                 case this._TYPE_FILE:
@@ -207,18 +249,18 @@ FileManager.prototype = {
     },
     _deleteItem: function(){ // delete all selected items
         var toDeleteCount = this._selectedItems.length;
-        if (toDeleteCount == 0){
-            alert("Nothing to delete");
+        if (toDeleteCount === 0){
+            alert(this.noForDeleteTxt);
             return false;
         }else{
-            if (confirm("Delete " + toDeleteCount + (toDeleteCount == 1 ? " item" : " items") + "?")){
+            if (confirm(this.deleteTxt + " " + toDeleteCount + (toDeleteCount === 1 ? " " + this.itemTxt : " " + this.itemsTxt) + "?")){
                 for (var i = 0; i < toDeleteCount; i++){
                     var el = this._selectedItems[i].node;
                     el.parentNode.removeChild(el);
                     this._updateStorageRoot({parent: this._currentRoot, upItem: this._selectedItems[i].info, action: this._ACTION_DELETE});
                 }
                 this._selectedItems = [];
-                if (this.getItemsTable().childNodes.length == 1){
+                if (this.getItemsTable().childNodes.length === 1){
                     this._groupControl.checked = false;
                 }
                 return true;
@@ -226,14 +268,14 @@ FileManager.prototype = {
         }
     },
     _renameItem: function(){ // trigger edit mode for items
-        if (this._selectedItems.length == 0){
-            alert("Nothing to rename");
+        if (this._selectedItems.length === 0){
+            alert(this.noForRenameTxt);
             return false;
         }else{
             for (var i = 0; i < this._selectedItems.length; i++){
                 var inp = this._selectedItems[i].node.querySelector('input');
                 inp.readOnly = false;
-                if (i == 0) inp.focus();
+                if (i === 0) inp.focus();
             }
         }
     },
@@ -242,8 +284,8 @@ FileManager.prototype = {
             allByType = this._getItemByType(type).nodes;
         for (var i = 0; i < allByType.length; i++){
             var inp = allByType[i].querySelector('input[type=text]');
-            if (inp == el) continue;
-            if (inp.value == el.value){
+            if (inp === el) continue;
+            if (inp.value === el.value){
                 isUnique = false;
                 break;
             }
@@ -255,17 +297,17 @@ FileManager.prototype = {
             inp.readOnly = true;
             inp.setAttribute("data-base-value", inp.value);
             return true;
-        }else if (inp.value == ""){
-            alert("Name can not be empty");
+        }else if (inp.value === ""){
+            alert(this.noEmptyNameTxt);
             return false;
         }else{
-            alert("Such name already exist");
+            alert(this.existNameTxt);
             return false;
         }
     },
     _createItem: function(params, isNew){
         var item = document.createElement("tr"),
-            name = params.name || "...",
+            name = params.name || "newItem",
             _this = this;
 
         item.className = params.type || this._TYPE_FOLDER;
@@ -298,14 +340,15 @@ FileManager.prototype = {
             name: name,
             action: function(){
                 if (!this.readOnly) return false; // if file in edit mode prevent opening it
-                alert("Currently file can not be opened");
+                alert(this.allowOpenFileTxt);
             },
             change: function(){
                 _this._changeSelectedStatus(this.checked, item, {type: _this._TYPE_FILE,name: name});
             },
             keyup: function(e){ // accept new name when enter is pressed
-                if (e.keyCode == 13){
+                if (e.keyCode === 13){
                     if (_this._verifyName(this, _this._TYPE_FILE)){
+                        _this._triggerBoxChange(false, item.querySelector("input[type=checkbox]"));
                         _this._updateStorageRoot({parent: _this._currentRoot, upItem: { type: _this._TYPE_FILE, name: this.value}, action: _this._ACTION_UPDATE , oldItem: {type: _this._TYPE_FILE, name: name}});
                     }
                 }
@@ -330,14 +373,20 @@ FileManager.prototype = {
                     _this._changeSelectedStatus(this.checked, item, {type: _this._TYPE_FOLDER, name: name, items: items});
                 },
                 keyup: function(e){ // accept new name when enter is pressed
-                    if (e.keyCode == 13){
+                    if (e.keyCode === 13){
                         if (_this._verifyName(this, _this._TYPE_FOLDER)){
+                            _this._triggerBoxChange(false, item.querySelector("input[type=checkbox]"));
                             _this._updateStorageRoot({parent: _this._currentRoot, upItem: { type: _this._TYPE_FOLDER, name: this.value}, action: _this._ACTION_UPDATE , oldItem: {type: _this._TYPE_FOLDER, name: name}});
                         }
                     }
                 }
             }, isNew);
         return item;
+    },
+    _triggerBoxChange: function(status, box){
+        box.checked = status;
+        box.onchange();
+        if (!status) box.blur();
     },
     _openFolder: function(params){ // open specific folder
         this.updatePath(params.name, true); // add folder name to general path
@@ -346,7 +395,7 @@ FileManager.prototype = {
     },
     _back: function(){ // back to parent folder
         if (this._isEmptyObject(this._currentRoot.__proto__)){ // check if parent is empty and root is reached
-            alert("You are in root already");
+            alert(this.inRootTxt);
         }else{
             this.updatePath(this._currentRoot.name, false);
             FileManager.prototype._currentRoot = FileManager.prototype._currentRoot.__proto__; // make current folder as paernt folder
@@ -362,7 +411,7 @@ FileManager.prototype = {
             });
         }else{ // remove item from selected array and change edit mode to readonly
             for (var i = 0; i < this._selectedItems.length; i++){
-                if (this._selectedItems[i].node.innerHTML == item.innerHTML){
+                if (this._selectedItems[i].node.innerHTML === item.innerHTML){
                     this._selectedItems.splice(i, 1);
                     break;
                 }
@@ -371,9 +420,9 @@ FileManager.prototype = {
             inp.readOnly = true;
             inp.value = inp.dataset.baseValue;
         }
-        if (this._selectedItems.length == 0){ // check if all boxed not checked uncheck group box
+        if (this._selectedItems.length === 0){ // check if all boxed not checked uncheck group box
             this._groupControl.checked = false;
-        }else if (this._selectedItems.length == this.getItemsTable().childNodes.length - 1){ // and vice verse
+        }else if (this._selectedItems.length === this.getItemsTable().childNodes.length - 1){ // and vice verse
             this._groupControl.checked = true;
         }
     },
@@ -381,9 +430,9 @@ FileManager.prototype = {
         var chl = this.getItemsTable().childNodes,
             byType = [],
             defNameCount = 0,
-            defName = type == this._TYPE_FILE ? this._DEFAULT_FILE_NAME : this._DEFAULT_FOLDER_NAME;
+            defName = type === this._TYPE_FILE ? this._DEFAULT_FILE_NAME : this._DEFAULT_FOLDER_NAME;
         for (var i = 1; i < chl.length; i++){ // get all items except first item that return to parent
-            if (chl[i].className == type){
+            if (chl[i].className === type){
                 byType.push(chl[i]);
                 if (chl[i].childNodes[1].querySelector('input').value.search(defName) != -1) defNameCount++; // calculate items with default name that was added when were created
             }
