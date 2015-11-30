@@ -2,7 +2,8 @@
 
 function FileManager(params){
     var self = this;
-    self.sortBy = params.sortBy || "name";
+    self.sortByProperty = params.sortByProperty || self._SORT_BY_NAME;
+    self.sortByIncrement = params.sortByIncrement || false;
     self.container = params.container || document.body;
 
     /** strings */
@@ -19,6 +20,8 @@ function FileManager(params){
     self.existNameTxt = params.existNameTxt || "Such name already exist";
     self.allowOpenFileTxt = params.allowOpenFileTxt || "Currently file can not be opened";
     self.inRootTxt = params.inRootTxt || "You are in root folder";
+    self.typeTxt = params.typeTxt || "Type";
+    self.nameTxt = params.nameTxt || "Name";
 
     /** classes */
     self.contClass = params.contClass || "itemsCont";
@@ -93,8 +96,8 @@ function FileManager(params){
         headerTB.className = self.headerTblClass;
         headerTB.innerHTML = "<thead>" +
             "<tr>" +
-            "<td>Type</td>" +
-            "<td>Name</td>" +
+            "<td><span class='sortByType' data-act="+(self.sortByProperty == self._SORT_BY_TYPE)+">"+self.typeTxt+"</span></td>" +
+            "<td><span class='sortByName' data-act="+(self.sortByProperty == self._SORT_BY_NAME)+">"+self.nameTxt+"</span></td>" +
             "<td>&nbsp;</td>" +
             "</tr>" +
             "</thead>";
@@ -106,6 +109,9 @@ function FileManager(params){
         cont.appendChild(itemsTB);
         self.getItemsTable = function(){
             return itemsTB;
+        };
+        self.getHeaderTale = function(){
+            return headerTB;
         };
         // create first item for returning to parent folder
         itemsTB.appendChild(self._createItem({
@@ -122,7 +128,7 @@ function FileManager(params){
                 var allChbox = self.getItemsTable().querySelectorAll("input[type=checkbox]");
                 for (var i = 0; i < allChbox.length; i++){ // make all checkboxes the same status as group control
                     if (allChbox[i] === this) continue;
-                    self._triggerBoxChange(this.checked, allChbox[i]);
+                    if (allChbox[i].checked !== this.checked) self._triggerBoxChange(this.checked, allChbox[i]); // set the same status if already is not set
                 }
             }
         }, false));
@@ -140,7 +146,22 @@ function FileManager(params){
             return baseRoot;
         };
         if (storedItems != null) baseRoot = JSON.parse(storedItems);
-        self._buildItemsFromStorage(self._createStorageRoot(baseRoot.name, baseRoot.items).items); // create root folder for file manager
+        self._buildItemsFromStorage(self._createStorageRoot(baseRoot.name, baseRoot.items).items.sort(self._sortBy(self.sortByProperty))); // create root folder for file manager
+    })();
+
+    // sort buttons functionality
+    (function(){
+        var headerTbl = self.getHeaderTale(),
+            sortByNameBtn = headerTbl.querySelector('.sortByName'),
+            sortByTypeBtn = headerTbl.querySelector('.sortByType');
+        sortByNameBtn.onclick = function(){
+            self.sortByProperty == self._SORT_BY_NAME ? self.sortByIncrement = !self.sortByIncrement : self.sortByIncrement = true;
+            self._sortButtonAction(this, sortByTypeBtn, self._SORT_BY_NAME);
+        };
+        sortByTypeBtn.onclick = function(){
+            self.sortByProperty == self._SORT_BY_TYPE ? self.sortByIncrement = !self.sortByIncrement : self.sortByIncrement = true;
+            self._sortButtonAction(this, sortByNameBtn, self._SORT_BY_TYPE);
+        };
     })();
 
     // events block
@@ -151,6 +172,9 @@ function FileManager(params){
                 break;
             case 27:
                 self._triggerBoxChange(false, self._groupControl);
+                break;
+            case 46:
+                self._deleteItem();
                 break;
             default:
         }
@@ -171,6 +195,8 @@ FileManager.prototype = {
     _ACTION_ADD: 1,
     _ACTION_DELETE: 2,
     _ACTION_UPDATE: 3,
+    _SORT_BY_TYPE: "type",
+    _SORT_BY_NAME: "name",
     _createStorageRoot: function(rootName, rootItems){
         var oldRoot = FileManager.prototype._currentRoot || {};
         FileManager.prototype._currentRoot = { // define new current folder
@@ -260,9 +286,8 @@ FileManager.prototype = {
                     this._updateStorageRoot({parent: this._currentRoot, upItem: this._selectedItems[i].info, action: this._ACTION_DELETE});
                 }
                 this._selectedItems = [];
-                if (this.getItemsTable().childNodes.length === 1){
-                    this._groupControl.checked = false;
-                }
+                this._groupControl.checked = false;
+                document.activeElement.blur();
                 return true;
             }
         }
@@ -275,7 +300,10 @@ FileManager.prototype = {
             for (var i = 0; i < this._selectedItems.length; i++){
                 var inp = this._selectedItems[i].node.querySelector('input');
                 inp.readOnly = false;
-                if (i === 0) inp.focus();
+                if (i === 0){
+                    inp.focus();
+                    inp.setSelectionRange(0, inp.value.length)
+                }
             }
         }
     },
@@ -312,7 +340,7 @@ FileManager.prototype = {
 
         item.className = params.type || this._TYPE_FOLDER;
         item.innerHTML = "" +
-            "<td>"+(params.type || this._TYPE_FOLDER)+"</td>" +
+            "<td>"+(params.type || 'root')+"</td>" +
             "<td><input type='text' data-base-value='"+name+"' readonly value='" + name +  "' /></td>" +
             "<td>"+ this._createBox('box_'+name).outerHTML +"</td>" +
             "";
@@ -340,10 +368,11 @@ FileManager.prototype = {
             name: name,
             action: function(){
                 if (!this.readOnly) return false; // if file in edit mode prevent opening it
-                alert(this.allowOpenFileTxt);
+                alert(_this.allowOpenFileTxt);
             },
             change: function(){
                 _this._changeSelectedStatus(this.checked, item, {type: _this._TYPE_FILE,name: name});
+                if (this.checked) item.querySelector("input[type=text]").setSelectionRange(0, 0);
             },
             keyup: function(e){ // accept new name when enter is pressed
                 if (e.keyCode === 13){
@@ -371,6 +400,7 @@ FileManager.prototype = {
                 },
                 change: function(){
                     _this._changeSelectedStatus(this.checked, item, {type: _this._TYPE_FOLDER, name: name, items: items});
+                    if (this.checked) item.querySelector("input[type=text]").setSelectionRange(0, 0);
                 },
                 keyup: function(e){ // accept new name when enter is pressed
                     if (e.keyCode === 13){
@@ -391,7 +421,7 @@ FileManager.prototype = {
     _openFolder: function(params){ // open specific folder
         this.updatePath(params.name, true); // add folder name to general path
         this._clearTable();
-        this._buildItemsFromStorage(this._createStorageRoot(params.name, params.items).items);
+        this._buildItemsFromStorage(this._createStorageRoot(params.name, params.items).items.sort(this._sortBy(this.sortByProperty)));
     },
     _back: function(){ // back to parent folder
         if (this._isEmptyObject(this._currentRoot.__proto__)){ // check if parent is empty and root is reached
@@ -400,7 +430,7 @@ FileManager.prototype = {
             this.updatePath(this._currentRoot.name, false);
             FileManager.prototype._currentRoot = FileManager.prototype._currentRoot.__proto__; // make current folder as paernt folder
             this._clearTable();
-            this._buildItemsFromStorage(this._currentRoot.items);
+            this._buildItemsFromStorage(this._currentRoot.items.sort(this._sortBy(this.sortByProperty)));
         }
     },
     _changeSelectedStatus: function(isSelected, item, itemParams){
@@ -472,5 +502,29 @@ FileManager.prototype = {
                 return false;
         }
         return true;
+    },
+    _sortButtonAction: function(sortBtn, altBtn, type){
+        sortBtn.dataset.act = true;
+        altBtn.dataset.act = false;
+        this.sortByProperty = type;
+        this._clearTable();
+        this._buildItemsFromStorage(this._currentRoot.items.sort(this._sortBy(type)));
+    },
+    _sortBy: function(property){
+        var sortOrder = 1,
+            _this = this;
+        if(property[0] === "-") {
+            sortOrder = -1;
+            property = property.substr(1);
+        }
+        return function (a,b) {
+            var result;
+            if (_this.sortByIncrement){
+                result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+            }else{
+                result = (a[property] > b[property]) ? -1 : (a[property] < b[property]) ? 1 : 0;
+            }
+            return result * sortOrder;
+        }
     }
 };

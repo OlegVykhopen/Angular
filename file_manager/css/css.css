@@ -8,7 +8,9 @@ section{
 }
 
 .pathCont{
-    padding: 10px 20px;
+    padding: 20px 10px 10px;
+    margin-bottom: 10px;
+    overflow-x: auto;
 }
 
 .controls_cont{
@@ -61,9 +63,10 @@ section{
     width: 50%;
     border: 1px solid #000;
     padding: 5px;
-}
-.itemsCont table tr:nth-child(even) td{
-    background: #ebefe5;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 .itemsCont table tr td:first-child{
     width: 30%;
@@ -71,9 +74,6 @@ section{
 .itemsCont table tr td:last-child{
     text-align: center;
     width: 20%;
-}
-.itemsCont table tr:nth-child(even) td{
-    background: #ebefe5;
 }
 .itemsCont table thead tr td{
     width: 48%;
@@ -85,8 +85,24 @@ section{
     text-align: center;
     width: 22%;
 }
+.itemsCont table tr.folder td{
+    background: rgba(227, 229, 247, 0.41);
+}
 .itemsCont .tbodyCont table tr:last-child td{
     border-bottom: none;
+}
+.itemsCont table thead tr td span{
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+.itemsCont table thead tr td span[data-act=true]{
+    font-weight: bold
+}
+.itemsCont .tbodyCont table tr:first-child td{
+    border-top: none;
 }
 .itemsCont .tbodyCont table tr td input[readonly]{
     border: none;
